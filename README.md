@@ -3,7 +3,7 @@ Here are the materials on the Developing OSGi Application Project, Feb-Mar 2019,
 
 --
 
-Author: Maksim Kryuhckov
+Author: Maksim Kryuchkov
 
 
 ## Project
