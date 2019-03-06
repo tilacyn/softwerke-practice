@@ -35,31 +35,47 @@ mvn exec:java
 
 ### Stage 3
 
-Возникли некоторое вопросы.
+Задание сделано, лежит в папке stage3.
 
-Во-первых, в папке stage3 лежит текущая версия проекта. Команда mvn install работает, но main не работает, выдавая ошибку:
 
-```
-Error starting program: org.osgi.framework.BundleException: Unable to resolve tilacyn.org.tilacyn.hello [1](R 1.0): missing requirement [tilacyn.org.tilacyn.hello [1](R 1.0)] osgi.wiring.package; (&(osgi.wiring.package=org.osgi.service.component)(version>=1.3.0)) Unresolved requirements: [[tilacyn.org.tilacyn.hello [1](R 1.0)] osgi.wiring.package; (&(osgi.wiring.package=org.osgi.service.component)(version>=1.3.0))]
-org.osgi.framework.BundleException: Unable to resolve tilacyn.org.tilacyn.hello [1](R 1.0): missing requirement [tilacyn.org.tilacyn.hello [1](R 1.0)] osgi.wiring.package; (&(osgi.wiring.package=org.osgi.service.component)(version>=1.3.0)) Unresolved requirements: [[tilacyn.org.tilacyn.hello [1](R 1.0)] osgi.wiring.package; (&(osgi.wiring.package=org.osgi.service.component)(version>=1.3.0))]
-	at org.apache.felix.framework.Felix.resolveBundleRevision(Felix.java:4368)
-	at org.apache.felix.framework.Felix.startBundle(Felix.java:2281)
-	at org.apache.felix.framework.BundleImpl.start(BundleImpl.java:998)
-	at org.apache.felix.framework.BundleImpl.start(BundleImpl.java:984)
-	at org.tilacyn.hello.main.Main.main(Main.java:32)
-	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
-	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-	at java.lang.reflect.Method.invoke(Method.java:498)
-	at org.codehaus.mojo.exec.ExecJavaMojo$1.run(ExecJavaMojo.java:297)
-	at java.lang.Thread.run(Thread.java:748)
+Команда для сборки:
+
+```bash
+mvn install
 ```
 
-В интернете говорят написать возле всех зависимостей ```<scope>provided</scope> ```, либо же видоизменять Import-Package. Я пробовал по всякому, не получается.
+Команда для тестирования приложения через Main:
 
-Во-вторых есть некоторый глобальный вопрос. Если у нас есть бандлы, то мы можем легко установить и запустить их програмно(как сделано в классе Main), либо же руками, пользуясь Apache Felix GoGo. В случае програмного оперирования бандлами мы используем объект класса Felix, который по сути является самим фреймворком, насколько я понимаю. Теперь вопрос: кто делает работу SCR? Тоже объект класса Felix? Он когда устанавливает и стартует бандлы, смотрит в OSGI-INF и делает все работу по публикации, получению сервисов, вызывает методы activate, deactivate и тд? Или я чего-то не понимаю.
-
+```bash
+cd org.tilacyn.hello.main
+mvn exec:java
+```
 
 ### Stage 4
 
 Лежит в папке stage4. Сборка - maven install. Готовый бандл в stage4/bundles
+
+### Stage 5
+
+Задание лежит в папке `stage5`, собранные бандлы в `stage5/bundles`.
+
+#### Как устроен проект?
+
+Было сделано два интерфейса - один `Wget`, другой - `StatisticsProvider`
+
+`Wget` имеет один метод - `getNewsTitle`, от которого ожидается возврат списка заголовков.
+У `Wget` есть две имплементации - `LentaWget` и `RSSWget`, каждая из которых сначала качает API новостных порталов, а затем парсит его package-private парсером. И `LentaWget` и `RSSWget` являются компонентами, реализующими интерфейс `Wget`, и у каждой из них есть свойство `@Property(name = "source", value = "(lenta|rss)")` (value равно соответствующей строке)
+
+Есть главный класс `TitleAnalyzer`, который имплементит `StatisticsProvider` и который является потребителем сервисов `Wget`. Соответственно у него есть поля типа `Wget` с аннотацией `Reference`, которые он использует, чтобы получиться список заголовков и посчитать 10 самых встречающихся слов. `TitleAnalyzer` в свою очередь с помощью аннотаций `@Properties` во время регистрации создает новую консольную команду `news:stats`.
+
+#### Проблема
+
+У меня возникла проблема. На данный момент приложение не обладает той функциональностью, которая требуется. Дело в том, только в рантайме наше приложение узнает о том, какой источник хочет пользователь. Отсюда напрашивается вывод, что параметр target у Reference у поля типа Wget должен быть равен какой-то переменной, то есть
+
+```java
+@Reference(target = "(source=%runtime_variable%)")
+Wget wget;
+```
+Я не смог найти, как это сделать, хотя видел указания, что так можно, в интернете.
+
+Поэтому я решил использовать два поля типа `Wget`, одно специально для ленты, другое - для `RSS`. Мне кажется это подход концептуально неправильный, потому что класс `TitleAnalyzer` не должен заботиться о том, какие сервисы бывают зарегистрированы. Если бы получилось сделать `target` зависимым от параметра функции `stats`, то пользователь напрямую бы общался в SCR, и это был бы правильный подход. Но помимо неправильного подхода получается ограничение функциональности, которое можно устранить, но я не знаю как. А именно: Сейчас компонента `TitleAnalyzer` не активируется до тех пор, пока не будут запущены бандлы и с лентой, и с RSS. Это уже совсем плохо. Я попробовал поменять параметр `Reference.policy` со `static` на `dynamic`. Вроде должно работать, но не работает..
