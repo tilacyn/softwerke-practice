@@ -1,7 +1,6 @@
 package org.tilacyn.hello.client;
 
 import org.apache.felix.scr.annotations.*;
-import org.osgi.service.component.ComponentContext;
 import org.tilacyn.hello.Greeting;
 
 /**
@@ -10,15 +9,11 @@ import org.tilacyn.hello.Greeting;
  */
 @Component
 public class Client {
-    @Reference(bind = "setGreeting"/*, unbind = "unbindGreeting"*/)
+    @Reference(bind = "setGreeting")
     private Greeting greeting;
 
     void setGreeting(Greeting greeting) {
         this.greeting = greeting;
-    }
-
-    void unbindGreeting(ComponentContext ctx) {
-        this.greeting = null;
     }
 
     public void sayHello() {
@@ -26,11 +21,11 @@ public class Client {
     }
 
     @Activate
-    void activate(ComponentContext ctx) {
+    void activate() {
         sayHello();
     }
 
     @Deactivate
-    void deactivate(ComponentContext ctx) {
+    void deactivate() {
     }
 }

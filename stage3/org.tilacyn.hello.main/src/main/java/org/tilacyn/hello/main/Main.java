@@ -25,16 +25,23 @@ public class Main {
 
             final BundleContext context = m_framework.getBundleContext();
 
+            Bundle scr = context.installBundle("file:.." + sep + "bundles" + sep + "org.apache.felix.scr-2.0.10.jar");
             Bundle provider = context.installBundle("file:.." + sep + "org.tilacyn.hello" + sep + "target" + sep + "org.tilacyn.hello-1.0.0.jar");
             Bundle consumer = context.installBundle("file:.." + sep + "org.tilacyn.hello.client" + sep + "target" + sep + "org.tilacyn.hello.client-1.0.0.jar");
 
             m_framework.start();
+
+            scr.start();
+
             provider.start();
 
             consumer.start();
             consumer.stop();
 
             provider.stop();
+
+            scr.stop();
+
             m_framework.stop();
 
         } catch (Exception ex) {
