@@ -1,9 +1,7 @@
 package org.tilacyn.news.wget.lenta;
 
 
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Service;
+import org.osgi.service.component.annotations.Component;
 import org.tilacyn.news.wget.Wget;
 
 import java.io.IOException;
@@ -13,8 +11,6 @@ import java.net.URL;
 import java.util.List;
 
 @Component(immediate = true)
-@Service
-@Property(name = "source", value = "lenta")
 public class LentaWget implements Wget {
     public List<String> getNewsTitles() {
         URL url;
@@ -45,5 +41,9 @@ public class LentaWget implements Wget {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public String getSourceName() {
+        return "lenta";
     }
 }

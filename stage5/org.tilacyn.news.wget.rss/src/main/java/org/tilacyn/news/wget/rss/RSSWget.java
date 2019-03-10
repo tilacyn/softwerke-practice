@@ -1,8 +1,6 @@
 package org.tilacyn.news.wget.rss;
 
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Service;
+import org.osgi.service.component.annotations.Component;
 import org.tilacyn.news.wget.Wget;
 
 import java.io.IOException;
@@ -12,8 +10,6 @@ import java.net.URL;
 import java.util.List;
 
 @Component(immediate = true)
-@Service
-@Property(name = "source", value = "rss")
 public class RSSWget implements Wget {
 
     public List<String> getNewsTitles() {
@@ -46,5 +42,9 @@ public class RSSWget implements Wget {
         }
 
         return null;
+    }
+
+    public String getSourceName() {
+        return "rss";
     }
 }

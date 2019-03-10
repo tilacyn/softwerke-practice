@@ -1,94 +1,84 @@
 package org.tilacyn.news.stats.impl;
 
-import org.apache.felix.scr.annotations.*;
-import org.apache.felix.scr.annotations.Properties;
+
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 import org.tilacyn.news.stats.StatisticsProvider;
 import org.tilacyn.news.wget.Wget;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Component
-@Properties({
-        @Property(name = "osgi.command.scope", value = "news"),
-        @Property(name = "osgi.command.function", value = {"stats" })
-})
-@Service
+@Component(
+        property = {
+                "osgi.command.scope=news", "osgi.command.function=stats"
+        }
+)
 public class TitlesAnalyzer implements StatisticsProvider {
-    @Reference(bind = "bindLenta", target = "(source=lenta)", policy = ReferencePolicy.DYNAMIC)
-    private volatile Wget lentaWget;
 
-    @Reference(bind = "bindRSS", target = "(source=rss)", policy = ReferencePolicy.DYNAMIC)
-    private volatile Wget RSSWget;
+    @Reference(
+            service = Wget.class,
+            cardinality = ReferenceCardinality.MULTIPLE,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unbindWget",
+            bind = "bindWget"
+    )
+    private volatile List<Wget> sources = new ArrayList<>();
 
     public TitlesAnalyzer() {
     }
 
-    protected void bindLenta(Wget wget) {
-        lentaWget = wget;
+    protected void bindWget(Wget wget) {
+        sources.add(wget);
     }
 
-    protected void bindRSS(Wget wget) {
-        RSSWget = wget;
+    protected void unbindWget(Wget wget) {
+        sources.remove(wget);
     }
 
     private void suggestAvailableServices() {
-        if (lentaWget == null && RSSWget == null) {
-            System.out.println("No news providers registered");
+        if (sources.isEmpty()) {
+            System.out.println("No news providers currently registered");
             return;
         }
-        System.out.println("Try");
-        if (RSSWget != null) {
-            System.out.println("news:stats rss");
-        }
-        if (lentaWget != null) {
-            System.out.println("news:stats lenta");
+        System.out.println("Try:");
+        for (Wget wget : sources) {
+            System.out.println("news:stats " + wget.getSourceName());
         }
     }
 
     public void stats() {
-        System.out.println("Error, no news source specified");
+        System.out.println("Error: no news source specified");
         suggestAvailableServices();
     }
 
     public void stats(String src) {
-        Wget wget = null;
 
-        if (src.equals("lenta")) {
-            wget = lentaWget;
-            if (wget == null) {
-                System.out.println("Error: Lenta news provider is not currently registered\n");
-                suggestAvailableServices();
-                return;
+
+        Optional<Wget> wget = sources.stream().filter(e -> e.getSourceName().equals(src)).findAny();
+
+        if (wget.isPresent()) {
+
+            List<String> list = tenRegularWorlds(wget.get().getNewsTitles());
+            for (String s : list) {
+                System.out.println(s);
             }
-        }
-
-        if (src.equals("rss")) {
-            wget = RSSWget;
-            if (wget == null) {
-                System.out.println("Error: RSS news provider is not currently registered\n");
-                suggestAvailableServices();
-                return;
-            }
-        }
-
-        if (wget == null) {
-            System.out.println("Error: unknown source specified, no such news provider");
-            suggestAvailableServices();
             return;
         }
 
-        List<String> list = tenRegularWorlds(wget.getNewsTitles());
-        for (String s : list) {
-            System.out.println(s);
-        }
+        System.out.println("Error: unknown source specified, no such news provider registered");
+
+        suggestAvailableServices();
     }
 
     private List<String> tenRegularWorlds(List<String> titles) {
-        List<String> result = new ArrayList<String>();
+        List<String> result = new ArrayList<>();
 
-        HashMap<Integer, String> words = new HashMap<Integer, String>();
-        HashMap<Integer, Integer> entries = new HashMap<Integer, Integer>();
+        HashMap<Integer, String> words = new HashMap<>();
+        HashMap<Integer, Integer> entries = new HashMap<>();
 
         for (String title : titles) {
             String[] localWords = title.split(" ");
@@ -107,7 +97,7 @@ public class TitlesAnalyzer implements StatisticsProvider {
                 entries
                         .entrySet()
                         .stream()
-                        .sorted(Comparator.comparingInt(Map.Entry::getValue))
+                        .sorted(Comparator.comparingInt(e -> -e.getValue()))
                         .limit(10)
                         .collect(Collectors.toList());
 
@@ -117,4 +107,5 @@ public class TitlesAnalyzer implements StatisticsProvider {
 
         return result;
     }
+    
 }
